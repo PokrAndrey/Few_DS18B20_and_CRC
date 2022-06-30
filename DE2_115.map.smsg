@@ -1,0 +1,1 @@
+Warning (10268): Verilog HDL information at bin_to_dec.v(18): always construct contains both blocking and non-blocking assignments File: D:/1/Linux/FPGA_Base/with_few_DS18B20_and__CRC/bin_to_dec.v Line: 18

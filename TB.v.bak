@@ -1,0 +1,104 @@
+module TB #(parameter N = 2 ) (
+    input signal,
+    input clk,
+    output wire [6:0]first_segment, 
+    output wire [6:0]second_segment,
+    output wire [6:0]third_segment,
+    output wire [6:0]fourth_segment,
+    output wire OE_to_tri,
+    output F1M, 
+	output reg presense = 0
+    );
+
+    assign OE_to_tri = ~(OE | (&in_byte & ~read_en));
+
+
+
+    reg [19:0]delay_measure = 0;
+    reg [N-1:0]NoB = 0;
+    reg measure = 0;
+    wire inv_OE = ~OE;
+    reg after_START;
+    
+    reg [7:0]byte;
+    reg [9:0]counter = 0;
+    reg [3:0]one_byte_counter = 0;
+    wire [7:0]in_byte = 8'hFF;
+    reg OE = 0;
+    reg EoB = 0;
+    wire START = pon | EoB;
+    wire read_en = (presense) ? 0 : 1;
+    reg EoR;
+    reg EoWr;
+    wire pon; 
+
+
+    always @(posedge clk)
+    begin
+        if (read_en)
+        begin
+    /////////////////////////////////////////////////////////////
+            if (one_byte_counter < 8)
+            begin
+                if (counter < 60)
+                begin
+                    OE <= (((counter == 0) | (counter == 10'b1)) & (in_byte != 8'hFF)) ? 1 : 0;
+                    byte[0] <= (counter == 15) ? signal : byte[0];
+                    counter <= counter + 1'b1;
+                end
+                else
+                begin
+                    counter <= 0;
+                    byte <= byte << 1'b1;
+                    one_byte_counter <= one_byte_counter + 1'b1;
+                end
+            end
+            else
+            begin
+                one_byte_counter <= 0;                    
+                EoB <= 1'b1;
+                EoR <= 1'b1;
+                presense <= ~(&byte);
+                
+            end
+    /////////////////////////////////////////////////////////////                
+        end
+
+        else
+        begin
+            if (one_byte_counter < 8)
+            begin
+                if (counter < 75)
+                begin
+                    OE <= (counter == 0) ? 1 :
+                          (counter > 60) ? 0 : ~byte[0];
+                    counter <= counter + 1'b1;
+                end
+                else
+                begin
+                    counter <= 0;
+                    byte <= byte >> 1'b1;
+                    OE <= 0;
+                    one_byte_counter <= one_byte_counter + 1'b1;
+                end
+            end
+            else
+            begin
+                one_byte_counter <= 0;
+                EoB <= 1'b1;
+                EoWr <= 1'b1;
+            end
+                            
+        end
+    end
+
+
+
+
+
+    data #(.N(2)) data( .byte(byte), .EoR(EoR), .NoB(NoB), .in_byte(in_byte), .clk(clk), .first_segment(first_segment), .second_segment(second_segment), .third_segment(third_segment), .fourth_segment(fourth_segment), .F1M(F1M));
+    //SM SM( .command(in_byte), .state(state));
+    PON PON( .clk(clk), .pon(pon), .F1M(F1M));
+    clk_div clk_div ( .clk(clk), .F1M(F1M));
+
+endmodule
